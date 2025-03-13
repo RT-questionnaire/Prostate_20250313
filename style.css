@@ -7,6 +7,7 @@ body {
     padding: 20px;
     display: flex;
     justify-content: center;
+    font-size: 18px;
 }
 
 .container {
@@ -22,7 +23,7 @@ body {
     background-color: #4a90e2;
     color: white;
     padding: 15px 20px;
-    font-size: 18px;
+    font-size: 22px;
     font-weight: bold;
     text-align: center;
     border-radius: 16px 16px 0 0;
@@ -35,7 +36,7 @@ body {
     max-height: none;
     overflow-y: auto;
     padding: 30px;
-    background-color: #fafbfc;
+    background-color: #f5f5f5;
 }
 
 .message {
@@ -54,19 +55,19 @@ body {
 
 .message-content {
     max-width: 80%;
-    padding: 12px 16px;
+    padding: 15px 18px;
     border-radius: 16px;
     margin-bottom: 8px;
     word-wrap: break-word;
-    line-height: 1.5;
+    line-height: 1.6;
     position: relative;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    font-size: 18px;
 }
 
 .message.bot .message-content {
-    background-color: #f0f0f0;
+    background-color: #ffffff;
     border-radius: 0 16px 16px 16px;
-    border-left: 3px solid #e6e6e6;
 }
 
 .message.user .message-content {
@@ -79,21 +80,21 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    margin-top: 10px;
+    margin-top: 15px;
     width: 100%;
     padding-left: 20px;
 }
 
 .option-button {
-    background-color: #f7f7f7;
-    border: none;
+    background-color: #fcfcfc;
+    border: 2px solid #e6e6e6;
     border-radius: 20px;
-    padding: 10px 15px;
-    margin: 5px 0;
+    padding: 12px 18px;
+    margin: 6px 0;
     width: 90%;
     text-align: left;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 18px;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
@@ -108,15 +109,16 @@ body {
     background-color: #4a90e2;
     color: white;
     box-shadow: 0 2px 5px rgba(74, 144, 226, 0.3);
+    border-color: #4a90e2;
 }
 
 #startButton {
     background-color: #4a90e2;
     color: white;
     border: none;
-    padding: 12px 25px;
+    padding: 15px 30px;
     border-radius: 25px;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: bold;
     cursor: pointer;
     display: block;
@@ -162,15 +164,15 @@ body {
     align-items: center;
     margin: 15px 0 15px 20px;
     width: 90%;
-    padding: 10px;
-    background-color: #f7f7f7;
+    padding: 15px;
+    background-color: #fcfcfc;
     border-radius: 10px;
 }
 
 .vas-slider {
     width: 90%;
-    height: 20px;
-    margin: 15px 0;
+    height: 25px;
+    margin: 20px 0;
     -webkit-appearance: none;
     appearance: none;
     background: #f2f2f2;
@@ -181,8 +183,8 @@ body {
 .vas-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 25px;
-    height: 25px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: #4a90e2;
     cursor: pointer;
@@ -190,8 +192,8 @@ body {
 }
 
 .vas-slider::-moz-range-thumb {
-    width: 25px;
-    height: 25px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: #4a90e2;
     cursor: pointer;
@@ -199,45 +201,45 @@ body {
 }
 
 .vas-value {
-    font-size: 18px;
-    font-weight: bold;
+    font-size: 20px;
     margin: 10px 0;
+    font-weight: bold;
     color: #333;
 }
 
 .vas-confirm {
-    margin-top: 10px;
-    background-color: #e0e0e0;
-    color: #333;
+    margin-top: 15px;
+    background-color: #4a90e2;
+    color: white;
     width: auto;
     min-width: 100px;
-    padding: 8px 15px;
+    padding: 12px 20px;
     text-align: center;
     border-radius: 20px;
+    font-size: 18px;
     font-weight: 500;
     transition: all 0.3s ease;
 }
 
 .vas-confirm:hover {
-    background-color: #d0d0d0;
+    background-color: #3a7bd5;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(74, 144, 226, 0.3);
 }
 
 .vas-confirm:active {
-    background-color: #4a90e2;
-    color: white;
-    transform: translateY(1px);
+    background-color: #3a7bd5;
+    transform: translateY(0);
+    box-shadow: none;
 }
 
 .vas-confirm.confirmed {
-    background-color: #4a90e2;
-    color: white;
+    background-color: #3a7bd5;
 }
 
 .result-section {
     margin: 20px;
-    padding: 20px;
+    padding: 30px;
     border-top: 1px solid #eee;
     background-color: #fafbfc;
 }
@@ -247,19 +249,22 @@ body {
     color: #4a90e2;
     font-weight: 600;
     margin-bottom: 20px;
+    font-size: 24px;
 }
 
 .result-message {
-    margin: 15px 0;
-    padding: 0 10px;
-    font-size: 16px;
+    margin: 20px 0;
+    padding: 20px;
+    font-size: 18px;
     line-height: 1.6;
     color: #555;
     text-align: center;
+    background: #f9f9f9;
+    border-radius: 10px;
 }
 
 #qrcode {
-    margin: 20px auto;
+    margin: 30px auto;
     text-align: center;
 }
 
@@ -268,37 +273,40 @@ body {
     display: inline-block;
     background-color: #4a90e2;
     color: white;
-    padding: 10px 20px;
-    border-radius: 20px;
+    padding: 15px 25px;
+    border-radius: 25px;
     text-decoration: none;
     margin: 15px auto;
-    font-size: 16px;
+    font-size: 18px;
     transition: all 0.3s ease;
     text-align: center;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 5px rgba(74, 144, 226, 0.3);
 }
 
 .mail-link:hover {
     background-color: #3a7bd5;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(74, 144, 226, 0.4);
 }
 
 .mail-container {
     text-align: center;
-    margin: 10px 0 20px 0;
+    margin: 20px 0;
 }
 
 h1, h2 {
     color: #4a90e2;
     font-weight: 600;
     margin-bottom: 20px;
+    font-size: 24px;
+    text-align: center;
 }
 
 h3 {
     color: #4a90e2;
     font-weight: 500;
     margin-bottom: 15px;
+    font-size: 20px;
 }
 
 ul {
@@ -307,7 +315,8 @@ ul {
 
 li {
     margin-bottom: 15px;
-    line-height: 1.5;
+    line-height: 1.7;
+    font-size: 18px;
 }
 
 strong {
@@ -333,42 +342,24 @@ strong {
     display: flex;
     align-items: center;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 18px;
 }
 
 .checkbox-label input[type="checkbox"] {
     margin-right: 10px;
-}
-
-@media (max-width: 768px) {
-    body {
-        padding: 10px;
-    }
-    
-    .chat-header {
-        padding: 12px;
-        font-size: 16px;
-    }
-    
-    .message-content {
-        max-width: 90%;
-    }
-    
-    .option-button {
-        padding: 8px 12px;
-        font-size: 13px;
-    }
+    width: 24px;
+    height: 24px;
 }
 
 /* 開始画面のスタイル */
 .start-screen {
-    padding: 30px 20px;
+    padding: 30px;
     text-align: center;
 }
 
 .intro-message {
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 18px;
+    line-height: 1.7;
     color: #555;
     margin: 20px 0 30px;
     padding: 0 15px;
@@ -377,7 +368,7 @@ strong {
 .button-container {
     display: flex;
     justify-content: center;
-    margin: 20px 0;
+    margin: 30px 0;
 }
 
 /* QRコード切り替えボタンのスタイル */
@@ -394,7 +385,7 @@ strong {
 
 .qr-description {
     margin-top: 10px;
-    font-size: 14px;
+    font-size: 16px;
     color: #666;
 }
 
@@ -408,11 +399,11 @@ strong {
     background-color: #f0f0f0;
     border: 1px solid #ddd;
     color: #555;
-    padding: 8px 15px;
+    padding: 10px 18px;
     margin: 0 5px;
     border-radius: 20px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
     transition: all 0.3s ease;
 }
 
@@ -444,7 +435,7 @@ strong {
     margin: 20px 0;
     padding: 0 10px;
     font-size: 18px;
-    line-height: 1.6;
+    line-height: 1.7;
     color: #555;
     text-align: center;
 }
@@ -474,7 +465,7 @@ strong {
     display: block;
     margin-bottom: 10px;
     color: #333;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: 500;
 }
 
@@ -482,9 +473,9 @@ strong {
 .psa-value-input input {
     width: 100%;
     padding: 12px 15px;
-    border: 1px solid #ddd;
+    border: 2px solid #ddd;
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 18px;
     color: #333;
     background-color: white;
 }
@@ -507,7 +498,7 @@ strong {
     border: none;
     padding: 15px 40px;
     border-radius: 30px;
-    font-size: 18px;
+    font-size: 20px;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -539,11 +530,11 @@ strong {
     display: inline-block;
     background-color: #4a90e2;
     color: white;
-    padding: 10px 20px;
-    border-radius: 20px;
+    padding: 15px 25px;
+    border-radius: 25px;
     text-decoration: none;
     margin: 15px auto;
-    font-size: 16px;
+    font-size: 18px;
     transition: all 0.3s ease;
     text-align: center;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
@@ -552,5 +543,93 @@ strong {
 .online-button:hover {
     background-color: #3a7bd5;
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 8px rgba(74, 144, 226, 0.4);
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+        font-size: 16px;
+    }
+    
+    .chat-header {
+        padding: 12px;
+        font-size: 20px;
+    }
+    
+    .message-content {
+        max-width: 90%;
+        padding: 12px 15px;
+        font-size: 16px;
+    }
+    
+    .option-button {
+        padding: 10px 15px;
+        font-size: 16px;
+    }
+
+    #startButton {
+        padding: 12px 25px;
+        font-size: 18px;
+    }
+
+    .vas-slider {
+        height: 20px;
+    }
+
+    .vas-value {
+        font-size: 18px;
+    }
+
+    .result-section h2 {
+        font-size: 22px;
+    }
+
+    .result-message {
+        font-size: 16px;
+    }
+
+    .mail-link, .online-button {
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+
+    h1, h2 {
+        font-size: 22px;
+    }
+
+    h3 {
+        font-size: 18px;
+    }
+
+    .intro-message, .psa-message {
+        font-size: 16px;
+    }
+}
+
+/* 追加スタイル：選択肢間の余白調整 */
+.option-button {
+    margin-bottom: 8px;
+}
+
+/* 選択肢のコンテナにスタイル追加 */
+.options-container {
+    margin-bottom: 20px;
+    position: relative;
+    padding-bottom: 15px;
+}
+
+/* 余白用の要素のスタイル */
+.options-padding {
+    height: 15px;
+    width: 100%;
+    clear: both;
+}
+
+/* 区切り線 */
+.divider {
+    border-top: 1px solid #ddd;
+    margin: 20px 0;
+    width: 100%;
 }
