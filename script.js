@@ -6,6 +6,28 @@ $(document).ready(function() {
     // フォームに入力があったかどうかのフラグ
     let hasUserInput = false;
     
+    // 症状の選択肢を定義
+    const symptoms = [
+        "排尿しづらい", "頻尿", "残尿感", "血尿", "排便時の痛み", "便に血が混ざる", "性機能の低下"
+    ];
+    
+    // 症状アンケートの質問を定義
+    const symptomQuestions = [
+        {
+            id: "current",
+            text: "以下の症状のうち、ここ1ヶ月以内に見られた症状を選択してください",
+            intro: "まずは現在の症状をお聞かせください。"
+        },
+        {
+            id: "worse",
+            text: "それらの症状のうち、前回の問診時と比較して悪化している症状を選択してください"
+        },
+        {
+            id: "better",
+            text: "次に、前回の問診時と比較して改善している症状を選択してください"
+        }
+    ];
+    
     // IPSSとEQ-5Dの質問と選択肢を定義
     const questions = {
         ipss: [
@@ -88,10 +110,34 @@ $(document).ready(function() {
     
     let currentFormType = "";
     let currentQuestionIndex = 0;
+    
+    // 症状に関する回答を保存する配列
+    let symptomAnswers = {
+        current: new Array(symptoms.length).fill(0),
+        worse: new Array(symptoms.length).fill(0),
+        better: new Array(symptoms.length).fill(0)
+    };
+    
     let answers = {
         ipss: new Array(questions.ipss.length).fill(null),
         eq5d: new Array(questions.eq5d.length).fill(null)
     };
+    
+    // 手続きのチャット用
+    let procedureAnswers = {
+        userType: "",
+        procedureType: "",
+        deathDate: "",
+        reason: "",
+        newEmail: "",
+        patientId: ""
+    };
+    
+    // 手続きのフラグ
+    let isProcedureMode = false;
+    
+    // 症状質問のインデックス
+    let currentSymptomQuestionIndex = 0;
     
     // 開始ボタンのイベントリスナー
     $('#startButton').on('click', function() {
@@ -100,24 +146,543 @@ $(document).ready(function() {
         // チャットインターフェースを表示
         $('#chatInterface').show();
         
-        // 固定で回答する項目を設定（IPSS-QOLとEQ-5D）
-        const selectedForms = ['ipss', 'eq5d'];
+        // 複数のメッセージを遅延を入れて表示
+        addBotMessages([
+            "それでは質問を開始します。"
+        ]);
         
-        if (selectedForms.length > 0) {
-            currentFormType = selectedForms[0];
-            
-            // 複数のメッセージを遅延を入れて表示
-            addBotMessages([
-                "それでは質問を開始します。",
-                "前半では排尿関連の症状についてお聞きします。"
-            ]);
-            
-            // 最初の質問を表示（最後のメッセージから十分な時間をあけて）
-            setTimeout(() => {
-                showQuestion(currentQuestionIndex);
-            }, 1200);
-        }
+        // 症状に関する質問から開始
+        setTimeout(() => {
+            showSymptomQuestion(currentSymptomQuestionIndex);
+        }, 1200);
     });
+    
+    // 症状に関する質問を表示する関数
+    function showSymptomQuestion(index) {
+        if (index >= symptomQuestions.length) {
+            // 症状質問が終了したら、IPSS-QOLスコアのアンケートに進む
+            setTimeout(() => {
+                addBotMessages([
+                    "ありがとうございました。",
+                    "次に、排尿症状の詳細についてお聞きします。"
+                ]);
+                
+                setTimeout(() => {
+                    currentFormType = 'ipss';
+                    currentQuestionIndex = 0;
+                    showQuestion(currentQuestionIndex);
+                }, 1200);
+            }, 600);
+            return;
+        }
+
+        const question = symptomQuestions[index];
+        
+        // イントロメッセージがあれば表示
+        if (question.intro) {
+            const introMessageDiv = addMessage(question.intro, false);
+            setTimeout(() => {
+                scrollToLatestContent(introMessageDiv);
+            }, 100);
+        }
+        
+        setTimeout(() => {
+            const messageDiv = addMessage(question.text, false);
+            
+            // 質問を表示してから選択肢を表示するまでに遅延を入れる
+            setTimeout(() => {
+                // 複数選択のコンテナを作成
+                const multiSelectContainer = document.createElement('div');
+                multiSelectContainer.className = 'multi-select-container';
+                
+                // 症状のボタンを作成
+                symptoms.forEach((symptom, symptomIndex) => {
+                    const button = document.createElement('button');
+                    button.className = 'symptom-button';
+                    button.textContent = symptom;
+                    button.setAttribute('data-symptom-index', symptomIndex);
+                    button.setAttribute('data-question-id', question.id);
+                    
+                    // 既に選択済みの場合はselectedクラスを追加
+                    if (symptomAnswers[question.id][symptomIndex] === 1) {
+                        button.classList.add('selected');
+                    }
+                    
+                    button.onclick = function() {
+                        // 選択状態を切り替え
+                        if (this.classList.contains('selected')) {
+                            this.classList.remove('selected');
+                            symptomAnswers[question.id][symptomIndex] = 0;
+                        } else {
+                            this.classList.add('selected');
+                            symptomAnswers[question.id][symptomIndex] = 1;
+                        }
+                    };
+                    
+                    multiSelectContainer.appendChild(button);
+                });
+                
+                // 確定ボタンを作成
+                const confirmButton = document.createElement('button');
+                confirmButton.className = 'symptom-confirm-button';
+                confirmButton.textContent = '確定';
+                confirmButton.onclick = function() {
+                    // 確定ボタンを非表示にする
+                    this.style.display = 'none';
+                    
+                    // 少し遅延させてから次の質問に進む
+                    setTimeout(() => {
+                        // 次の質問に進む
+                        currentSymptomQuestionIndex++;
+                        showSymptomQuestion(currentSymptomQuestionIndex);
+                    }, 300);
+                };
+                
+                const confirmContainer = document.createElement('div');
+                confirmContainer.className = 'symptom-confirm-container';
+                confirmContainer.appendChild(confirmButton);
+                
+                messageDiv.appendChild(multiSelectContainer);
+                messageDiv.appendChild(confirmContainer);
+                
+                // 質問と選択肢が表示された後にスクロール
+                setTimeout(() => {
+                    scrollToLatestContent(confirmButton);
+                }, 200);
+            }, 600);
+        }, question.intro ? 800 : 0);
+    }
+    
+    // 各種お手続きボタンのイベントリスナー
+    $('#procedureButton').on('click', function() {
+        isProcedureMode = true;
+        
+        // 開始画面を非表示
+        $('#startScreen').hide();
+        // チャットインターフェースを表示
+        $('#chatInterface').show();
+        
+        // 最初の質問を表示
+        setTimeout(() => {
+            showProcedureQuestion('userType');
+        }, 600);
+    });
+    
+    // 手続き用の質問を表示する関数
+    function showProcedureQuestion(questionType) {
+        let question = "";
+        let options = [];
+        
+        switch(questionType) {
+            case 'userType':
+                question = "患者さんと、ご回答者のご関係を教えて下さい";
+                options = ["ご本人", "ご家族", "医療関係者"];
+                break;
+            case 'procedureType':
+                question = "どのようなことでお困りですか？";
+                options = ["登録メールアドレスを変更したい", "アンケートへの参加をやめたい"];
+                break;
+            case 'stopReason':
+                question = "差し支えなければ理由をご回答いただけますか？";
+                const reasonOptions = ["メール配信が煩わしい", "操作が難しすぎる", "個人情報保護に関する懸念"];
+                
+                // ご本人以外の場合のみ「患者さんがお亡くなりになった」を追加
+                if (procedureAnswers.userType !== "ご本人") {
+                    reasonOptions.push("患者さんがお亡くなりになった");
+                }
+                
+                reasonOptions.push("答えたくない");
+                options = reasonOptions;
+                break;
+        }
+        
+        const messageDiv = addMessage(question, false);
+        
+        // 質問を表示してから選択肢を表示するまでに遅延を入れる
+        setTimeout(() => {
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'options';
+            optionsDiv.setAttribute('data-question-type', questionType);
+            
+            options.forEach((option) => {
+                const button = document.createElement('button');
+                button.className = 'option-button';
+                button.textContent = option;
+                button.setAttribute('data-question-type', questionType);
+                button.setAttribute('data-option', option);
+                button.onclick = function() {
+                    handleProcedureOptionClick(this, questionType, option);
+                };
+                
+                optionsDiv.appendChild(button);
+            });
+            
+            messageDiv.appendChild(optionsDiv);
+            
+            // 質問と選択肢が表示された後にスクロール
+            setTimeout(() => {
+                scrollToLatestContent(messageDiv.lastChild);
+            }, 200);
+        }, 600);
+    }
+    
+    // 手続き用の選択肢クリック処理
+    function handleProcedureOptionClick(buttonElement, questionType, selectedOption) {
+        const currentOptions = document.querySelectorAll(`.options[data-question-type="${questionType}"] .option-button`);
+        
+        // 同じ質問の全ての選択肢からselectedクラスを削除
+        currentOptions.forEach(button => {
+            button.classList.remove('selected');
+            button.classList.remove('animated-select');
+        });
+        
+        // クリックされた選択肢にselectedクラスを追加
+        buttonElement.classList.add('selected');
+        buttonElement.classList.add('animated-select');
+        
+        // 回答を保存
+        procedureAnswers[questionType] = selectedOption;
+        
+        // 次の質問または処理へ進む
+        setTimeout(() => {
+            handleProcedureFlow(questionType, selectedOption);
+        }, 600);
+    }
+    
+    // 手続きフローの制御
+    function handleProcedureFlow(questionType, selectedOption) {
+        switch(questionType) {
+            case 'userType':
+                // ユーザータイプを保存して次の質問へ
+                showProcedureQuestion('procedureType');
+                break;
+                
+            case 'procedureType':
+                if (selectedOption === "登録メールアドレスを変更したい") {
+                    // メールアドレス変更フロー
+                    showEmailChangeForm();
+                } else {
+                    // アンケート参加終了フロー
+                    showProcedureQuestion('stopReason');
+                }
+                break;
+                
+            case 'stopReason':
+                procedureAnswers.reason = selectedOption;
+                
+                if (selectedOption === "患者さんがお亡くなりになった") {
+                    // 死亡日入力フォームを表示
+                    showDeathDateForm();
+                } else {
+                    // その他の理由の場合は参加終了処理へ
+                    showStopParticipationConfirmation();
+                }
+                break;
+        }
+    }
+    
+    // メールアドレス変更フォームを表示
+    function showEmailChangeForm() {
+        const messageDiv = addMessage("承知いたしました。それでは新しいメールアドレスをご入力ください", false);
+        
+        setTimeout(() => {
+            // メールアドレス入力フォーム
+            const formDiv = document.createElement('div');
+            formDiv.className = 'email-input-form';
+            
+            const emailInput = document.createElement('input');
+            emailInput.type = 'email';
+            emailInput.placeholder = 'メールアドレス';
+            emailInput.id = 'newEmailInput';
+            emailInput.className = 'procedure-input';
+            emailInput.pattern = '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}';
+            emailInput.title = '正しいメールアドレスの形式で入力してください';
+            
+            const submitButton = document.createElement('button');
+            submitButton.textContent = '確定';
+            submitButton.className = 'procedure-submit';
+            submitButton.onclick = function() {
+                const emailValue = emailInput.value.trim();
+                const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+                
+                if (emailRegex.test(emailValue)) {
+                    procedureAnswers.newEmail = emailValue;
+                    addMessage(emailValue, true);
+                    showPatientIdForm();
+                } else {
+                    alert('正しいメールアドレスの形式で入力してください');
+                }
+            };
+            
+            formDiv.appendChild(emailInput);
+            formDiv.appendChild(submitButton);
+            messageDiv.appendChild(formDiv);
+            
+            setTimeout(() => {
+                scrollToLatestContent(formDiv);
+                emailInput.focus();
+            }, 200);
+        }, 600);
+    }
+    
+    // 診察券番号入力フォームを表示
+    function showPatientIdForm() {
+        const messageDiv = addMessage("入力を受け付けました。情報の確認のため、診察券番号をご入力ください", false);
+        
+        setTimeout(() => {
+            // 診察券番号入力フォーム
+            const formDiv = document.createElement('div');
+            formDiv.className = 'patientid-input-form';
+            
+            const patientIdInput = document.createElement('input');
+            patientIdInput.type = 'number';
+            patientIdInput.inputMode = 'numeric';
+            patientIdInput.placeholder = '診察券番号（半角数字）';
+            patientIdInput.id = 'patientIdInput';
+            patientIdInput.className = 'procedure-input';
+            patientIdInput.pattern = '[0-9]+';
+            patientIdInput.title = '半角数字で入力してください';
+            
+            const submitButton = document.createElement('button');
+            submitButton.textContent = '確定';
+            submitButton.className = 'procedure-submit';
+            submitButton.onclick = function() {
+                const patientIdValue = patientIdInput.value.trim();
+                const numberRegex = /^[0-9]+$/;
+                
+                if (numberRegex.test(patientIdValue)) {
+                    procedureAnswers.patientId = patientIdValue;
+                    addMessage(patientIdValue, true);
+                    showEmailChangeConfirmation();
+                } else {
+                    alert('半角数字で入力してください');
+                }
+            };
+            
+            formDiv.appendChild(patientIdInput);
+            formDiv.appendChild(submitButton);
+            messageDiv.appendChild(formDiv);
+            
+            setTimeout(() => {
+                scrollToLatestContent(formDiv);
+                patientIdInput.focus();
+            }, 200);
+        }, 600);
+    }
+    
+    // メールアドレス変更確認メッセージとボタンを表示
+    function showEmailChangeConfirmation() {
+        const messageDiv = addMessage("ご入力ありがとうございました。以下のボタンからメールを送信いただくとお手続きが完了します。", false);
+        
+        setTimeout(() => {
+            // メール送信ボタンと最初に戻るボタン
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'procedure-buttons';
+            
+            // メール送信ボタン
+            const mailButton = document.createElement('a');
+            mailButton.href = generateEmailLink('emailChange');
+            mailButton.className = 'mail-link';
+            mailButton.textContent = 'メール送信';
+            mailButton.onclick = function() {
+                const returnButton = document.getElementById('returnButton');
+                returnButton.disabled = false;
+                returnButton.classList.add('enabled');
+            };
+            
+            // 最初に戻るボタン（最初は無効）
+            const returnButton = document.createElement('button');
+            returnButton.id = 'returnButton';
+            returnButton.className = 'return-button';
+            returnButton.textContent = '最初に戻る';
+            returnButton.disabled = true;
+            returnButton.onclick = function() {
+                resetAndReturnToStart();
+            };
+            
+            buttonContainer.appendChild(mailButton);
+            buttonContainer.appendChild(returnButton);
+            messageDiv.appendChild(buttonContainer);
+            
+            setTimeout(() => {
+                scrollToLatestContent(buttonContainer);
+            }, 200);
+        }, 600);
+    }
+    
+    // 死亡日入力フォームを表示
+    function showDeathDateForm() {
+        const messageDiv = addMessage("それは御愁傷様です。もし差し支えなければ、お亡くなりになった日付をご回答いただければ幸いです。", false);
+        
+        setTimeout(() => {
+            // 日付入力フォーム
+            const formDiv = document.createElement('div');
+            formDiv.className = 'death-date-form';
+            
+            // 日付入力
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.id = 'deathDateInput';
+            dateInput.className = 'procedure-input';
+            
+            // コメント
+            const commentP = document.createElement('p');
+            commentP.className = 'death-date-comment';
+            commentP.textContent = 'ご入力頂いた情報は病院のカルテ情報に反映させていただきます。';
+            
+            // ボタンコンテナ
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'death-date-buttons';
+            
+            // 確定ボタン
+            const confirmButton = document.createElement('button');
+            confirmButton.textContent = '確定';
+            confirmButton.className = 'procedure-submit';
+            confirmButton.onclick = function() {
+                const dateValue = dateInput.value;
+                if (dateValue) {
+                    procedureAnswers.deathDate = dateValue;
+                    addMessage(dateValue, true);
+                    showDeathConfirmation();
+                } else {
+                    alert('日付を入力してください');
+                }
+            };
+            
+            // 入力しないボタン
+            const skipButton = document.createElement('button');
+            skipButton.textContent = '入力しない';
+            skipButton.className = 'procedure-skip';
+            skipButton.onclick = function() {
+                showDeathConfirmation();
+            };
+            
+            buttonContainer.appendChild(confirmButton);
+            buttonContainer.appendChild(skipButton);
+            
+            formDiv.appendChild(dateInput);
+            formDiv.appendChild(commentP);
+            formDiv.appendChild(buttonContainer);
+            messageDiv.appendChild(formDiv);
+            
+            setTimeout(() => {
+                scrollToLatestContent(formDiv);
+            }, 200);
+        }, 600);
+    }
+    
+    // 死亡確認メッセージとメール送信ボタンを表示
+    function showDeathConfirmation() {
+        const messageDiv = addMessage("以下のボタンからメールを送信いただくとお手続きが完了します。ご回答くださいましてありがとうございました。", false);
+        
+        setTimeout(() => {
+            // メール送信ボタン
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'procedure-buttons';
+            
+            const mailButton = document.createElement('a');
+            mailButton.href = generateEmailLink('death');
+            mailButton.className = 'mail-link';
+            mailButton.textContent = 'メール送信';
+            mailButton.onclick = function() {
+                // メール送信後のメッセージ
+                setTimeout(() => {
+                    const thankMessageDiv = addMessage("ご回答くださいましてありがとうございました。ご入力頂いた情報は病院のカルテ情報に反映させていただきます。入力手続きには1週間程度を要しますので、重複のご連絡など失礼がございました際にはご容赦いただければ幸いです。", false);
+                    
+                    setTimeout(() => {
+                        scrollToLatestContent(thankMessageDiv);
+                    }, 200);
+                }, 1000);
+            };
+            
+            buttonContainer.appendChild(mailButton);
+            messageDiv.appendChild(buttonContainer);
+            
+            setTimeout(() => {
+                scrollToLatestContent(buttonContainer);
+            }, 200);
+        }, 600);
+    }
+    
+    // 参加終了確認メッセージとメール送信ボタンを表示
+    function showStopParticipationConfirmation() {
+        const messageDiv = addMessage("承知いたしました。それでは以下のボタンからメールを送信いただきますと、配信停止のお手続きを取らせていただきます。<br>これまでご協力くださいましてありがとうございました。", false);
+        
+        setTimeout(() => {
+            // メール送信ボタン
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'procedure-buttons';
+            
+            const mailButton = document.createElement('a');
+            mailButton.href = generateEmailLink('stop');
+            mailButton.className = 'mail-link';
+            mailButton.textContent = 'メール送信';
+            
+            buttonContainer.appendChild(mailButton);
+            messageDiv.appendChild(buttonContainer);
+            
+            setTimeout(() => {
+                scrollToLatestContent(buttonContainer);
+            }, 200);
+        }, 600);
+    }
+    
+    // 手続き用のメールリンク生成
+    function generateEmailLink(type) {
+        // 現在の日付を取得
+        const today = new Date();
+        const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+        
+        let subject = "【各種お手続き】登録メールアドレス変更";
+        let body = "このまま件名・内容を変更せずご送信ください\n\n";
+        
+        body += `入力日：${dateString}\n`;
+        body += `ご回答者：${procedureAnswers.userType}\n`;
+        
+        switch (type) {
+            case 'emailChange':
+                body += `新しいメールアドレス：${procedureAnswers.newEmail}\n`;
+                body += `診察券番号：${procedureAnswers.patientId}\n`;
+                break;
+                
+            case 'death':
+                if (procedureAnswers.deathDate) {
+                    body += `お亡くなりになった日付：${procedureAnswers.deathDate}\n`;
+                }
+                break;
+                
+            case 'stop':
+                body += `配信停止の理由：${procedureAnswers.reason}\n`;
+                break;
+        }
+        
+        return `mailto:rt.questionnaire@gmail.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    }
+    
+    // 最初の画面に戻る
+    function resetAndReturnToStart() {
+        // チャットインターフェースを非表示
+        $('#chatInterface').hide();
+        // 開始画面を表示
+        $('#startScreen').show();
+        
+        // チャットメッセージをクリア
+        $('#chatMessages').empty();
+        
+        // 状態をリセット
+        isProcedureMode = false;
+        procedureAnswers = {
+            userType: "",
+            procedureType: "",
+            deathDate: "",
+            reason: "",
+            newEmail: "",
+            patientId: ""
+        };
+        
+        // ウィンドウを先頭にスクロール
+        window.scrollTo(0, 0);
+    }
     
     // スクロール処理を行う関数
     function scrollToLatestContent(target = null, offset = 100) {
@@ -151,7 +716,7 @@ $(document).ready(function() {
         
         const contentDiv = document.createElement('div');
         contentDiv.className = 'message-content';
-        contentDiv.textContent = text;
+        contentDiv.innerHTML = text;
         
         messageDiv.appendChild(contentDiv);
         messagesDiv.appendChild(messageDiv);
@@ -206,14 +771,53 @@ $(document).ready(function() {
                 slider.value = answers[currentFormType][index] || '';
                 slider.className = 'vas-slider';
                 
-                const valueDisplay = document.createElement('div');
-                valueDisplay.className = 'vas-value';
-                valueDisplay.innerHTML = `<span id="vas_value">${answers[currentFormType][index] || '選択してください'}</span>/${question.max}`;
+                // VAS値入力用のテキストボックス
+                const valueInputContainer = document.createElement('div');
+                valueInputContainer.className = 'vas-value-container';
+                
+                const valueInput = document.createElement('input');
+                valueInput.type = 'number';
+                valueInput.min = question.min;
+                valueInput.max = question.max;
+                valueInput.value = answers[currentFormType][index] || '';
+                valueInput.className = 'vas-value-input';
+                valueInput.placeholder = '0-100';
+                
+                const valueLabel = document.createElement('span');
+                valueLabel.className = 'vas-value-label';
+                valueLabel.textContent = `/100`;
+                
+                valueInputContainer.appendChild(valueInput);
+                valueInputContainer.appendChild(valueLabel);
                 
                 // スライダーの値が変更されたときの処理
                 slider.oninput = function() {
-                    valueDisplay.innerHTML = `<span id="vas_value">${this.value}</span>/${question.max}`;
+                    valueInput.value = this.value;
                     answers[currentFormType][index] = this.value;
+                };
+                
+                // テキスト入力の値が変更されたときの処理
+                valueInput.oninput = function() {
+                    // 入力が空の場合
+                    if (this.value === '') {
+                        // スライダーの値をクリア（最小値に設定）
+                        slider.value = question.min;
+                        // 回答データをクリア
+                        answers[currentFormType][index] = '';
+                        return;
+                    }
+                    
+                    let inputValue = parseInt(this.value, 10);
+                    
+                    // 数値の範囲を制限
+                    if (!isNaN(inputValue)) {
+                        if (inputValue < question.min) inputValue = question.min;
+                        if (inputValue > question.max) inputValue = question.max;
+                        
+                        slider.value = inputValue;
+                        answers[currentFormType][index] = inputValue;
+                        this.value = inputValue;
+                    }
                 };
                 
                 // 確定ボタン
@@ -242,7 +846,7 @@ $(document).ready(function() {
                 };
                 
                 vasContainer.appendChild(slider);
-                vasContainer.appendChild(valueDisplay);
+                vasContainer.appendChild(valueInputContainer);
                 vasContainer.appendChild(confirmButton);
                 messageDiv.appendChild(vasContainer);
             } else {
@@ -356,8 +960,8 @@ $(document).ready(function() {
             setTimeout(() => {
                 // 複数のメッセージを遅延を入れて表示
                 addBotMessages([
-                    "前半の質問は終了しました。続いて後半の質問に移ります。",
-                    "後半では、生活の質についてお聞きします。"
+                    "続いて、生活のしやすさに関する質問に移ります。",
+                    "あと6問ほどですので、ご協力よろしくお願いいたします。"
                 ]);
                 
                 // 次のフォームの最初の質問を表示（最後のメッセージから十分な時間をあけて）
@@ -388,8 +992,40 @@ $(document).ready(function() {
             // 結果セクションを表示
             $('#resultSection').show();
             
-            // 結果の要約を非表示にする
-            $('#resultSummary').hide();
+            // 結果の要約を表示
+            let summaryText = '<h3>ご回答内容</h3>';
+            
+            // 症状アンケートの結果
+            summaryText += '<h4>症状アンケート</h4>';
+            summaryText += '<p>現在の症状: ' + symptomAnswers.current.join('-') + '</p>';
+            summaryText += '<p>悪化している症状: ' + symptomAnswers.worse.join('-') + '</p>';
+            summaryText += '<p>改善している症状: ' + symptomAnswers.better.join('-') + '</p>';
+            
+            // IPSS-QOLスコアの結果
+            summaryText += '<h4>IPSS-QOLスコア</h4>';
+            const ipssScores = answers.ipss.slice(0, 7).map((answer, index) => {
+                const options = questions.ipss[index].options;
+                return options.indexOf(answer);
+            });
+            const qolScore = answers.ipss[7] ? questions.ipss[7].options.indexOf(answers.ipss[7]) : '-';
+            const ipssTotal = ipssScores.reduce((sum, score) => sum + (score >= 0 ? score : 0), 0);
+            summaryText += '<p>スコア: ' + ipssScores.join('-') + '-' + qolScore + '</p>';
+            summaryText += '<p>合計点: ' + ipssTotal + '点</p>';
+            
+            // EQ-5Dの結果
+            summaryText += '<h4>EQ-5D</h4>';
+            const eq5dScores = answers.eq5d.slice(0, 5).map((answer, index) => {
+                const options = questions.eq5d[index].options;
+                return options.indexOf(answer);
+            });
+            summaryText += '<p>スコア: ' + eq5dScores.join('-') + '</p>';
+            
+            if (answers.eq5d[5]) {
+                summaryText += '<p>健康状態(VAS): ' + answers.eq5d[5] + '/100</p>';
+            }
+            
+            $('#resultSummary').html(summaryText);
+            $('#resultSummary').show();
             
             // オンライン回答ボタンの生成（mail-linkクラスをonline-buttonクラスに変更）
             const onlineButton = '<a href="#psaSection" class="online-button" id="onlineButton">オンラインで回答の方はこちら</a>';
@@ -428,6 +1064,12 @@ $(document).ready(function() {
         
         // フォーマットされたテキストを生成
         let formattedText = `入力日：${dateString}\r\n`;
+        
+        // 症状の回答を追加
+        formattedText += `【症状アンケート】\r\n`;
+        formattedText += `症状: ${symptomAnswers.current.join('-')}\r\n`;
+        formattedText += `悪化: ${symptomAnswers.worse.join('-')}\r\n`;
+        formattedText += `改善: ${symptomAnswers.better.join('-')}\r\n`;
         
         // IPSSの結果を追加
         if (data.ipss && data.ipss.length > 0) {
@@ -481,6 +1123,20 @@ $(document).ready(function() {
         // ヘッダー行を作成
         let headers = ["Date"];
         let values = [dateString];
+        
+        // 症状の回答を追加
+        for (let i = 0; i < symptoms.length; i++) {
+            headers.push(`Current_${i+1}`);
+            values.push(symptomAnswers.current[i]);
+        }
+        for (let i = 0; i < symptoms.length; i++) {
+            headers.push(`Worse_${i+1}`);
+            values.push(symptomAnswers.worse[i]);
+        }
+        for (let i = 0; i < symptoms.length; i++) {
+            headers.push(`Better_${i+1}`);
+            values.push(symptomAnswers.better[i]);
+        }
         
         // IPSSの結果を追加
         if (data.ipss && data.ipss.length > 0) {
@@ -671,10 +1327,13 @@ $(document).ready(function() {
         // PSA値の入力内容を追加
         const psaText = generatePsaText();
         
+        // テンプレートIDを取得（現在は固定値）
+        const templateId = "template001";
+        
         // メール本文を作成
         const mailBody = encodeURIComponent(formattedText + psaText);
         
         // メールクライアントを開く（確認なしで直接開く）
-        window.location.href = `mailto:example@example.com?subject=問診結果&body=${mailBody}`;
+        window.location.href = `mailto:rt.questionnaire@gmail.com?subject=問診結果_${templateId}&body=${mailBody}`;
     });
 });
