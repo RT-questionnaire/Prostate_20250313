@@ -1,6 +1,36 @@
 $(document).ready(function() {
     window.scrollTo(0, 0);
 
+    // URLパラメータから患者ID(診察券番号)を取得する
+    function getPatientIdFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const patientId = urlParams.get('patientId');
+        return patientId ? patientId.trim() : '';
+    }
+    
+    // 患者IDをフォームに設定
+    function setPatientIdToForms() {
+        const patientId = getPatientIdFromUrl();
+        if (patientId) {
+            console.log('URLパラメータから患者ID取得: ' + patientId);
+            
+            // PSAフォームの診察券番号入力
+            if (document.getElementById('psaPatientId')) {
+                document.getElementById('psaPatientId').value = patientId;
+            }
+            
+            // 各種お手続きの診察券番号入力フィールド（遅延して設定）
+            $(document).on('focus', '#patientIdInput', function() {
+                if (!this.value && patientId) {
+                    this.value = patientId;
+                }
+            });
+        }
+    }
+    
+    // 初期化時に患者IDを設定
+    setPatientIdToForms();
+
     // メール送信ボタンのクリックイベントを削除
 
     // フォームに入力があったかどうかのフラグ
@@ -15,16 +45,16 @@ $(document).ready(function() {
     const symptomQuestions = [
         {
             id: "current",
-            text: "以下の症状のうち、ここ1ヶ月以内に見られた症状を選択してください",
-            intro: "まずは現在の症状をお聞かせください。"
+            intro: "まずは現在の症状をお聞かせください。",
+            text: "以下の症状のうち、ここ1ヶ月以内に見られた症状を選択してください（複数選択可）"
         },
         {
             id: "worse",
-            text: "それらの症状のうち、前回の問診時と比較して悪化している症状を選択してください"
+            text: "それらの症状のうち、前回の問診時と比較して悪化している症状を選択してください（複数選択可）"
         },
         {
             id: "better",
-            text: "次に、前回の問診時と比較して改善している症状を選択してください"
+            text: "次に、前回の問診時と比較して改善している症状を選択してください（複数選択可）"
         }
     ];
     
@@ -353,8 +383,8 @@ $(document).ready(function() {
     function handleProcedureFlow(questionType, selectedOption) {
         switch(questionType) {
             case 'userType':
-                // ユーザータイプを保存して次の質問へ
-                showProcedureQuestion('procedureType');
+                // ユーザータイプを保存して診察券番号入力へ進む
+                showPatientIdForm();
                 break;
                 
             case 'procedureType':
@@ -408,7 +438,7 @@ $(document).ready(function() {
                 if (emailRegex.test(emailValue)) {
                     procedureAnswers.newEmail = emailValue;
                     addMessage(emailValue, true);
-                    showPatientIdForm();
+                    showEmailChangeConfirmation();
                 } else {
                     alert('正しいメールアドレスの形式で入力してください');
                 }
@@ -427,7 +457,10 @@ $(document).ready(function() {
     
     // 診察券番号入力フォームを表示
     function showPatientIdForm() {
-        const messageDiv = addMessage("入力を受け付けました。情報の確認のため、診察券番号をご入力ください", false);
+        const messageDiv = addMessage("情報の確認のため、診察券番号をご入力ください", false);
+        
+        // URLパラメータから患者IDを取得
+        const patientIdFromUrl = getPatientIdFromUrl();
         
         setTimeout(() => {
             // 診察券番号入力フォーム
@@ -435,27 +468,35 @@ $(document).ready(function() {
             formDiv.className = 'patientid-input-form';
             
             const patientIdInput = document.createElement('input');
-            patientIdInput.type = 'number';
+            patientIdInput.type = 'text';
             patientIdInput.inputMode = 'numeric';
             patientIdInput.placeholder = '診察券番号（半角数字）';
             patientIdInput.id = 'patientIdInput';
             patientIdInput.className = 'procedure-input';
-            patientIdInput.pattern = '[0-9]+';
+            patientIdInput.pattern = '[0-9-]+';
             patientIdInput.title = '半角数字で入力してください';
+            
+            // URLパラメータからの患者IDがあれば設定
+            if (patientIdFromUrl) {
+                patientIdInput.value = patientIdFromUrl;
+            }
             
             const submitButton = document.createElement('button');
             submitButton.textContent = '確定';
             submitButton.className = 'procedure-submit';
             submitButton.onclick = function() {
                 const patientIdValue = patientIdInput.value.trim();
-                const numberRegex = /^[0-9]+$/;
                 
-                if (numberRegex.test(patientIdValue)) {
-                    procedureAnswers.patientId = patientIdValue;
+                if (patientIdValue) {
+                    // 冒頭の0や途中のハイフンを削除
+                    const cleanedPatientId = patientIdValue.replace(/^0+|[-]/g, '');
+                    procedureAnswers.patientId = cleanedPatientId;
                     addMessage(patientIdValue, true);
-                    showEmailChangeConfirmation();
+                    
+                    // 次の質問へ進む（お手続きの種類を選択）
+                    showProcedureQuestion('procedureType');
                 } else {
-                    alert('半角数字で入力してください');
+                    alert('診察券番号を入力してください');
                 }
             };
             
@@ -633,25 +674,29 @@ $(document).ready(function() {
         const today = new Date();
         const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
         
-        let subject = "【各種お手続き】登録メールアドレス変更";
+        let subject = "";
         let body = "このまま件名・内容を変更せずご送信ください\n\n";
         
         body += `入力日：${dateString}\n`;
         body += `ご回答者：${procedureAnswers.userType}\n`;
+        body += `診察券番号：${procedureAnswers.patientId}\n`;
         
         switch (type) {
             case 'emailChange':
+                subject = "【各種お手続き】登録メールアドレス変更";
                 body += `新しいメールアドレス：${procedureAnswers.newEmail}\n`;
-                body += `診察券番号：${procedureAnswers.patientId}\n`;
                 break;
                 
             case 'death':
+                subject = "【各種お手続き】配信停止";
+                body += `配信停止の理由：患者さんがお亡くなりになった\n`;
                 if (procedureAnswers.deathDate) {
                     body += `お亡くなりになった日付：${procedureAnswers.deathDate}\n`;
                 }
                 break;
                 
             case 'stop':
+                subject = "【各種お手続き】配信停止";
                 body += `配信停止の理由：${procedureAnswers.reason}\n`;
                 break;
         }
@@ -1058,22 +1103,17 @@ $(document).ready(function() {
     
     // フォーマットされたテキストを生成する関数
     function generateFormattedText(data) {
-        // 現在の日付を取得
-        const today = new Date();
-        const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
-        
         // フォーマットされたテキストを生成
-        let formattedText = `入力日：${dateString}\r\n`;
+        let formattedText = `【症状アンケート】\r\n`;
         
         // 症状の回答を追加
-        formattedText += `【症状アンケート】\r\n`;
         formattedText += `症状: ${symptomAnswers.current.join('-')}\r\n`;
         formattedText += `悪化: ${symptomAnswers.worse.join('-')}\r\n`;
         formattedText += `改善: ${symptomAnswers.better.join('-')}\r\n`;
         
         // IPSSの結果を追加
         if (data.ipss && data.ipss.length > 0) {
-            formattedText += `【IPSS-QOLスコア】\r\n`;
+            formattedText += `\r\n【IPSS-QOLスコア】\r\n`;
             
             // IPSSスコアを取得（0点始まり）
             const ipssScores = data.ipss.slice(0, 7).map(answer => {
@@ -1094,7 +1134,7 @@ $(document).ready(function() {
         
         // EQ-5Dの結果を追加
         if (data.eq5d && data.eq5d.length > 0) {
-            formattedText += `【EQ-5D】\r\n`;
+            formattedText += `\r\n【EQ-5D】\r\n`;
             
             // EQ-5Dスコアを取得（最初の5問、0点始まり）
             const eq5dScores = data.eq5d.slice(0, 5).map(answer => {
@@ -1321,6 +1361,24 @@ $(document).ready(function() {
 
     // PSA入力フォームの送信処理
     $(document).on('click', '#psaSubmitButton', function() {
+        // 診察券番号を取得して処理
+        let patientId = $('#psaPatientId').val().trim();
+        
+        // 入力がない場合、URLパラメータから取得を試みる
+        if (!patientId) {
+            patientId = getPatientIdFromUrl();
+        }
+        
+        // それでも診察券番号が入力されていない場合はアラート表示
+        if (!patientId) {
+            alert('診察券番号を入力してください');
+            $('#psaPatientId').focus();
+            return;
+        }
+        
+        // 冒頭の0や途中のハイフンを削除
+        const cleanedPatientId = patientId.replace(/^0+|[-]/g, '');
+        
         // フォーマットされたテキストを生成
         const formattedText = generateFormattedText(answers);
         
@@ -1331,9 +1389,20 @@ $(document).ready(function() {
         const templateId = "template001";
         
         // メール本文を作成
-        const mailBody = encodeURIComponent(formattedText + psaText);
+        let mailBody = "このまま件名・内容を変更せずご送信ください\n\n";
         
-        // メールクライアントを開く（確認なしで直接開く）
-        window.location.href = `mailto:rt.questionnaire@gmail.com?subject=問診結果_${templateId}&body=${mailBody}`;
+        // 現在の日付を取得
+        const today = new Date();
+        const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+        
+        // 診察券番号と日付を先頭に追加
+        mailBody += `入力日：${dateString}\n`;
+        mailBody += `診察券番号：${cleanedPatientId}\n\n`;
+        
+        // 問診結果とPSA値を追加
+        mailBody += formattedText + psaText;
+        
+        // メールクライアントを開く
+        window.location.href = `mailto:rt.questionnaire@gmail.com?subject=問診結果_${templateId}&body=${encodeURIComponent(mailBody)}`;
     });
 });

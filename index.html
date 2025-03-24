@@ -83,6 +83,20 @@
                         <input type="number" id="psaValue3" name="psaValue3" step="0.01" min="0">
                     </div>
                 </div>
+                
+                <!-- セパレータと診察券番号入力の見出し -->
+                <div class="section-separator">
+                    <h3>診察券番号の入力</h3>
+                    <p class="section-description">診察券番号をご入力ください</p>
+                </div>
+
+                <!-- 診察券番号入力フォーム -->
+                <div class="psa-input-group">
+                    <div class="psa-date-input">
+                        <label for="psaPatientId">診察券番号</label>
+                        <input type="text" id="psaPatientId" name="psaPatientId" pattern="[0-9-]+" inputmode="numeric" placeholder="半角数字（例：123456）">
+                    </div>
+                </div>
             </div>
 
             <div class="psa-submit">
