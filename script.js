@@ -12,7 +12,7 @@ $(document).ready(function() {
     function getEmailFromUrl() {
         const urlParams = new URLSearchParams(window.location.search);
         const email = urlParams.get('email');
-        return email ? email.trim() : '';
+        return email ? email.trim().replace(/\/$/, '') : '';
     }
     
     // 患者IDをフォームに設定
