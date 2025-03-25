@@ -5,7 +5,14 @@ $(document).ready(function() {
     function getPatientIdFromUrl() {
         const urlParams = new URLSearchParams(window.location.search);
         const patientId = urlParams.get('patientId');
-        return patientId ? patientId.trim() : '';
+        return patientId ? patientId.trim().replace(/\/$/, '') : '';
+    }
+    
+    // URLパラメータからメールアドレスを取得する
+    function getEmailFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const email = urlParams.get('email');
+        return email ? email.trim() : '';
     }
     
     // 患者IDをフォームに設定
@@ -160,7 +167,8 @@ $(document).ready(function() {
         deathDate: "",
         reason: "",
         newEmail: "",
-        patientId: ""
+        patientId: "",
+        currentEmail: ""
     };
     
     // 手続きのフラグ
@@ -457,10 +465,11 @@ $(document).ready(function() {
     
     // 診察券番号入力フォームを表示
     function showPatientIdForm() {
-        const messageDiv = addMessage("情報の確認のため、診察券番号をご入力ください", false);
+        const messageDiv = addMessage("情報の確認のため、診察券番号および現在ご登録のメールアドレスをご入力ください", false);
         
-        // URLパラメータから患者IDを取得
+        // URLパラメータから患者IDとメールアドレスを取得
         const patientIdFromUrl = getPatientIdFromUrl();
+        const emailFromUrl = getEmailFromUrl();
         
         setTimeout(() => {
             // 診察券番号入力フォーム
@@ -481,32 +490,66 @@ $(document).ready(function() {
                 patientIdInput.value = patientIdFromUrl;
             }
             
+            // メールアドレス入力フォーム
+            const emailInput = document.createElement('input');
+            emailInput.type = 'email';
+            emailInput.placeholder = '現在ご登録のメールアドレス';
+            emailInput.id = 'currentEmailInput';
+            emailInput.className = 'procedure-input';
+            emailInput.pattern = '[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}';
+            emailInput.title = '正しいメールアドレスの形式で入力してください';
+            
+            // URLパラメータからのメールアドレスがあれば設定
+            if (emailFromUrl) {
+                emailInput.value = emailFromUrl;
+            }
+            
+            // 初期値がある場合の案内メッセージ
+            if (patientIdFromUrl || emailFromUrl) {
+                const helpText = document.createElement('p');
+                helpText.className = 'pre-filled-help-text';
+                helpText.textContent = '現在ご登録の値を表示しておりますので、お間違いがなければそのまま確定ボタンを押してください';
+                formDiv.appendChild(helpText);
+            }
+            
             const submitButton = document.createElement('button');
             submitButton.textContent = '確定';
             submitButton.className = 'procedure-submit';
             submitButton.onclick = function() {
                 const patientIdValue = patientIdInput.value.trim();
+                const emailValue = emailInput.value.trim();
                 
-                if (patientIdValue) {
+                if (patientIdValue && emailValue) {
                     // 冒頭の0や途中のハイフンを削除
                     const cleanedPatientId = patientIdValue.replace(/^0+|[-]/g, '');
                     procedureAnswers.patientId = cleanedPatientId;
-                    addMessage(patientIdValue, true);
+                    procedureAnswers.currentEmail = emailValue;
+                    addMessage(`診察券番号: ${patientIdValue}`, true);
+                    addMessage(`メールアドレス: ${emailValue}`, true);
                     
                     // 次の質問へ進む（お手続きの種類を選択）
                     showProcedureQuestion('procedureType');
                 } else {
-                    alert('診察券番号を入力してください');
+                    if (!patientIdValue) {
+                        alert('診察券番号を入力してください');
+                    } else {
+                        alert('メールアドレスを入力してください');
+                    }
                 }
             };
             
             formDiv.appendChild(patientIdInput);
+            formDiv.appendChild(emailInput);
             formDiv.appendChild(submitButton);
             messageDiv.appendChild(formDiv);
             
             setTimeout(() => {
                 scrollToLatestContent(formDiv);
-                patientIdInput.focus();
+                if (!patientIdFromUrl) {
+                    patientIdInput.focus();
+                } else if (!emailFromUrl) {
+                    emailInput.focus();
+                }
             }, 200);
         }, 600);
     }
@@ -680,6 +723,7 @@ $(document).ready(function() {
         body += `入力日：${dateString}\n`;
         body += `ご回答者：${procedureAnswers.userType}\n`;
         body += `診察券番号：${procedureAnswers.patientId}\n`;
+        body += `現在ご登録のメールアドレス：${procedureAnswers.currentEmail}\n`;
         
         switch (type) {
             case 'emailChange':
@@ -722,7 +766,8 @@ $(document).ready(function() {
             deathDate: "",
             reason: "",
             newEmail: "",
-            patientId: ""
+            patientId: "",
+            currentEmail: ""
         };
         
         // ウィンドウを先頭にスクロール
