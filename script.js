@@ -1,3 +1,63 @@
+// RSA暗号化のためのユーティリティクラス
+class RSACryptoUtil {
+  constructor() {
+    this.publicKey = null;
+    this.jsEncrypt = null;
+  }
+  
+  // 公開鍵を設定
+  setPublicKey(publicKey) {
+    this.publicKey = publicKey;
+    this.jsEncrypt = new JSEncrypt();
+    this.jsEncrypt.setPublicKey(publicKey);
+    return true;
+  }
+  
+  // 公開鍵が設定されているか確認
+  hasPublicKey() {
+    return this.publicKey !== null && this.jsEncrypt !== null;
+  }
+  
+  // テキストを暗号化（RSA）
+  encrypt(text) {
+    if (!this.hasPublicKey()) {
+      console.error('公開鍵が設定されていません');
+      return null;
+    }
+    
+    try {
+      return this.jsEncrypt.encrypt(text);
+    } catch (error) {
+      console.error('RSA暗号化エラー:', error);
+      return null;
+    }
+  }
+  
+  // オブジェクトのフィールドを暗号化
+  encryptFields(obj, fields) {
+    if (!this.hasPublicKey()) {
+      console.error('公開鍵が設定されていません');
+      return obj;
+    }
+    
+    const result = {...obj};
+    
+    for (const field of fields) {
+      if (result[field]) {
+        result[field] = this.encrypt(result[field].toString());
+        
+        // 暗号化されたことを示すフラグを追加
+        result[`${field}_encrypted`] = true;
+      }
+    }
+    
+    return result;
+  }
+}
+
+// RSA暗号化ユーティリティのインスタンスを作成
+const rsaCrypto = new RSACryptoUtil();
+
 $(document).ready(function() {
     window.scrollTo(0, 0);
 
@@ -13,6 +73,13 @@ $(document).ready(function() {
         const urlParams = new URLSearchParams(window.location.search);
         const email = urlParams.get('email');
         return email ? email.trim().replace(/\/$/, '') : '';
+    }
+    
+    // URLパラメータからワンタイムIDを取得する
+    function getOneTimeIdFromUrl() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const oneTimeId = urlParams.get('oneTimeId');
+        return oneTimeId ? oneTimeId.trim() : '';
     }
     
     // 患者IDをフォームに設定
@@ -1045,28 +1112,40 @@ $(document).ready(function() {
     
     // フォーム完了時の処理
     function handleFormCompletion() {
-        if (currentFormType === 'ipss') {
-            // IPSSが終了したら、EQ-5Dに進む
-            setTimeout(() => {
-                // 複数のメッセージを遅延を入れて表示
+        const formType = currentFormType;
+        
+        // 回答が完了したことを表示
                 addBotMessages([
-                    "続いて、生活のしやすさに関する質問に移ります。",
-                    "あと6問ほどですので、ご協力よろしくお願いいたします。"
+            "全ての質問に回答いただき、ありがとうございました。",
+            "結果をまとめています..."
                 ]);
                 
-                // 次のフォームの最初の質問を表示（最後のメッセージから十分な時間をあけて）
                 setTimeout(() => {
-                    currentFormType = 'eq5d';
-                    currentQuestionIndex = 0;
-                    showQuestion(currentQuestionIndex);
-                }, 1200);
-            }, 600);
-        } else if (currentFormType === 'eq5d') {
-            // EQ-5Dが終了したら、結果を表示
-            setTimeout(() => {
+            // フォームの種類に応じた結果処理
+            if (formType === 'symptoms') {
+                const resultData = {
+                    formType: 'symptoms',
+                    answers: symptomAnswers
+                };
+                
+                // 結果を表示
                 showResults();
-            }, 600);
-        }
+                
+                // APIサーバーへデータを送信
+                submitSurveyData(resultData);
+            } else if (formType === 'ipss' || formType === 'eq5d') {
+                const resultData = {
+                    formType: formType,
+                    answers: answers[formType]
+                };
+                
+                // 結果を表示
+                showResults();
+                
+                // APIサーバーへデータを送信
+                submitSurveyData(resultData);
+            }
+        }, 1200);
     }
     
     // 結果を表示する関数
@@ -1404,50 +1483,195 @@ $(document).ready(function() {
         return hasData ? psaText : '';
     }
 
-    // PSA入力フォームの送信処理
-    $(document).on('click', '#psaSubmitButton', function() {
-        // 診察券番号を取得して処理
-        let patientId = $('#psaPatientId').val().trim();
+    // PSA送信ボタンのイベントリスナー（メール送信部分を修正）
+    $('#psaSubmitButton').on('click', function() {
+        // PSAフォームの値を取得
+        const psaDate1 = $('#psaDate1').val();
+        const psaValue1 = $('#psaValue1').val();
+        const psaDate2 = $('#psaDate2').val();
+        const psaValue2 = $('#psaValue2').val();
+        const psaDate3 = $('#psaDate3').val();
+        const psaValue3 = $('#psaValue3').val();
+        const patientId = $('#psaPatientId').val();
         
-        // 入力がない場合、URLパラメータから取得を試みる
-        if (!patientId) {
-            patientId = getPatientIdFromUrl();
-        }
-        
-        // それでも診察券番号が入力されていない場合はアラート表示
+        // 患者IDは必須
         if (!patientId) {
             alert('診察券番号を入力してください');
             $('#psaPatientId').focus();
             return;
         }
         
-        // 冒頭の0や途中のハイフンを削除
-        const cleanedPatientId = patientId.replace(/^0+|[-]/g, '');
+        // 少なくとも1組のPSA値と日付が必要
+        if ((!psaDate1 || !psaValue1) && (!psaDate2 || !psaValue2) && (!psaDate3 || !psaValue3)) {
+            alert('少なくとも1組のPSA検査値と日付を入力してください');
+            $('#psaDate1').focus();
+            return;
+        }
         
-        // フォーマットされたテキストを生成
-        const formattedText = generateFormattedText(answers);
+        // PSAデータを作成
+        const psaData = {
+            formType: 'psa',
+            answers: {
+                patientId: patientId,
+                psa: []
+            }
+        };
         
-        // PSA値の入力内容を追加
-        const psaText = generatePsaText();
+        // 入力されたPSA値を追加
+        if (psaDate1 && psaValue1) {
+            psaData.answers.psa.push({
+                date: psaDate1,
+                value: psaValue1
+            });
+        }
         
-        // テンプレートIDを取得（現在は固定値）
-        const templateId = "template001";
+        if (psaDate2 && psaValue2) {
+            psaData.answers.psa.push({
+                date: psaDate2,
+                value: psaValue2
+            });
+        }
         
-        // メール本文を作成
-        let mailBody = "このまま件名・内容を変更せずご送信ください\n\n";
+        if (psaDate3 && psaValue3) {
+            psaData.answers.psa.push({
+                date: psaDate3,
+                value: psaValue3
+            });
+        }
         
-        // 現在の日付を取得
-        const today = new Date();
-        const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
+        // 結果セクションを表示
+        $('#psaSection').hide();
+        $('#resultSection').show();
         
-        // 診察券番号と日付を先頭に追加
-        mailBody += `入力日：${dateString}\n`;
-        mailBody += `診察券番号：${cleanedPatientId}\n\n`;
-        
-        // 問診結果とPSA値を追加
-        mailBody += formattedText + psaText;
-        
-        // メールクライアントを開く
-        window.location.href = `mailto:rt.questionnaire@gmail.com?subject=問診結果_${templateId}&body=${encodeURIComponent(mailBody)}`;
+        // APIサーバーへデータを送信
+        submitSurveyData(psaData);
     });
+
+    // アンケートのデータをAPIサーバーに送信する
+    function submitSurveyData(surveyData) {
+        // ワンタイムIDを取得
+        const oneTimeId = getOneTimeIdFromUrl();
+        const patientId = getPatientIdFromUrl();
+        const email = getEmailFromUrl();
+        
+        if (!oneTimeId) {
+            console.error('ワンタイムIDが見つかりません');
+            $('#resultMessage').html('<p class="error-message">認証情報が不足しています。正しいURLからアクセスしてください。</p>');
+            return;
+        }
+        
+        // APIエンドポイント（GASのWebアプリURL）
+        const apiUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec'; // デプロイ時に正しいIDに置き換え
+        const apiKey = 'YOUR_API_KEY';  // デプロイ時に正しいAPIキーに置き換え
+        
+        // 送信中メッセージを表示
+        $('#resultMessage').html('<p>データを送信中です...</p>');
+        
+        // まず公開鍵を取得
+        fetchPublicKey()
+            .then(() => {
+                // 機密データを暗号化
+                let processedData = surveyData;
+                
+                // 患者ID、メールアドレスなどの機密データを含む場合は暗号化
+                if (surveyData.patientId || patientId) {
+                    if (!processedData.patientId && patientId) {
+                        processedData.patientId = patientId;
+                    }
+                    
+                    if (!processedData.email && email) {
+                        processedData.email = email;
+                    }
+                    
+                    // 暗号化対象のフィールド
+                    const fieldsToEncrypt = ['patientId', 'email'];
+                    
+                    // 暗号化処理
+                    processedData = rsaCrypto.encryptFields(processedData, fieldsToEncrypt);
+                }
+                
+                // POSTデータを作成
+                const postData = {
+                    action: 'submitSurveyData',
+                    apiKey: apiKey,
+                    oneTimeId: oneTimeId,
+                    surveyData: processedData
+                };
+                
+                // データをJSON形式に変換
+                const jsonData = JSON.stringify(postData);
+                
+                // Fetch APIを使用してPOSTリクエストを送信
+                return fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: jsonData
+                });
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('サーバーレスポンスエラー: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    // 成功した場合の処理
+                    $('#resultMessage').html('<p>アンケートの回答を送信しました。ご協力ありがとうございました。</p>');
+                    
+                    // QRコードは引き続き表示
+                    generateNormalQR(surveyData);
+                } else {
+                    // エラーメッセージを表示
+                    $('#resultMessage').html('<p class="error-message">エラー: ' + data.error + '</p>');
+                }
+            })
+            .catch(error => {
+                console.error('送信エラー:', error);
+                $('#resultMessage').html('<p class="error-message">送信中にエラーが発生しました。時間をおいて再度お試しください。</p>');
+            });
+    }
+    
+    // サーバーから公開鍵を取得する関数
+    function fetchPublicKey() {
+        // すでに公開鍵を持っている場合はすぐに解決
+        if (rsaCrypto.hasPublicKey()) {
+            return Promise.resolve();
+        }
+        
+        // APIエンドポイント（GASのWebアプリURL）
+        const apiUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec'; // デプロイ時に正しいIDに置き換え
+        const apiKey = 'YOUR_API_KEY';  // デプロイ時に正しいAPIキーに置き換え
+        
+        // GETパラメータを作成
+        const params = new URLSearchParams({
+            action: 'getPublicKey',
+            apiKey: apiKey
+        });
+        
+        // 公開鍵を取得
+        return fetch(`${apiUrl}?${params.toString()}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('公開鍵取得失敗: ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.publicKey) {
+                    // 取得した公開鍵を設定
+                    return rsaCrypto.setPublicKey(data.publicKey);
+                } else {
+                    throw new Error('公開鍵が見つかりません: ' + (data.error || '不明なエラー'));
+                }
+            })
+            .catch(error => {
+                console.error('公開鍵取得エラー:', error);
+                // 公開鍵の取得に失敗した場合は、暗号化なしで続行
+                console.warn('暗号化なしで処理を続行します');
+                return Promise.resolve();
+            });
+    }
 });
